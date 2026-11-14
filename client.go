@@ -435,10 +435,31 @@ type Port struct {
 	HostIP   string
 }
 
-// Workspace is a host path mounted at the same absolute path in the guest.
+// Workspace is a host path mounted in the guest.
 type Workspace struct {
-	Path     string
-	ReadOnly bool
+	Path      string
+	ReadOnly  bool
+	GuestPath string
+}
+
+// CloneOptions selects an existing host workspace as the source for clone mode.
+type CloneOptions struct {
+	SourceWorkspacePath string
+	GuestWorkdir        *string
+}
+
+// GitEndpoint identifies the guest's Git endpoint while that endpoint is available.
+type GitEndpoint struct {
+	HostIP     string
+	Port       uint32
+	Repository string
+}
+
+// CloneInfo describes the clone workspace exposed inside a sandbox.
+type CloneInfo struct {
+	GuestWorkdir string
+	RemoteName   string
+	GitEndpoint  *GitEndpoint
 }
 
 type CreateRequest struct {
@@ -450,6 +471,7 @@ type CreateRequest struct {
 	CPUs          uint32
 	MemoryMiB     uint32
 	Workspaces    []Workspace
+	Clone         *CloneOptions
 	Ports         []Port
 	Allow         []NetworkRule
 	Deny          []NetworkRule
@@ -518,6 +540,7 @@ type Sandbox struct {
 	Image         string
 	Workspace     string
 	Workspaces    []Workspace
+	Clone         *CloneInfo
 	Ports         []Port
 	Allow         []NetworkRule
 	Deny          []NetworkRule

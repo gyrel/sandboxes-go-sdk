@@ -213,15 +213,10 @@ func (c *client) context(ctx context.Context) (context.Context, context.CancelFu
 
 type sandboxClient struct{ c *client }
 
+//nolint:gocritic // SandboxService's public Create contract passes CreateRequest by value.
 func (s sandboxClient) Create(ctx context.Context, req CreateRequest) (*Operation, error) {
-	if len(req.OAuthCredentials) > 0 {
-		version, err := Version(s.c).Get(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("verify daemon OAuth metadata support: %w", err)
-		}
-		if !apiVersionAtLeast(version.APIVersion, oauthCredentialsMinimumAPIVersion) {
-			return nil, &Error{Code: errorCodeUnsupported, Message: "daemon API does not support OAuth credential metadata"}
-		}
+	if err := requireCreateFeatureVersions(ctx, Version(s.c), &req); err != nil {
+		return nil, err
 	}
 	ctx, cancel := s.c.context(ctx)
 	defer cancel()
@@ -233,6 +228,7 @@ func (s sandboxClient) Create(ctx context.Context, req CreateRequest) (*Operatio
 		Cpus:             req.CPUs,
 		MemoryMib:        req.MemoryMiB,
 		Workspaces:       toProtoWorkspaces(req.Workspaces),
+		Clone:            toProtoClone(req.Clone),
 		Ports:            toProtoPorts(req.Ports),
 		Allow:            toProtoRules(req.Allow),
 		Deny:             toProtoRules(req.Deny),
@@ -247,6 +243,34 @@ func (s sandboxClient) Create(ctx context.Context, req CreateRequest) (*Operatio
 		return nil, mapError(err)
 	}
 	return fromProtoOperation(resp.GetOperation()), nil
+}
+
+func requireCreateFeatureVersions(ctx context.Context, versionService VersionService, req *CreateRequest) error {
+	needsGuestPath := false
+	for i := range req.Workspaces {
+		if req.Workspaces[i].GuestPath != "" {
+			needsGuestPath = true
+			break
+		}
+	}
+	needsClone := req.Clone != nil
+	if len(req.OAuthCredentials) == 0 && !needsGuestPath && !needsClone {
+		return nil
+	}
+	version, err := versionService.Get(ctx)
+	if err != nil {
+		return fmt.Errorf("verify daemon create feature support: %w", err)
+	}
+	if len(req.OAuthCredentials) > 0 && !apiVersionAtLeast(version.APIVersion, oauthCredentialsMinimumAPIVersion) {
+		return &Error{Code: errorCodeUnsupported, Message: "daemon API does not support OAuth credential metadata"}
+	}
+	if needsGuestPath && !apiVersionAtLeast(version.APIVersion, guestPathMinimumAPIVersion) {
+		return &Error{Code: errorCodeUnsupported, Message: "daemon API does not support workspace guest paths"}
+	}
+	if needsClone && !apiVersionAtLeast(version.APIVersion, cloneMinimumAPIVersion) {
+		return &Error{Code: errorCodeUnsupported, Message: "daemon API does not support clone mode"}
+	}
+	return nil
 }
 
 func toProtoOAuthCredentials(credentials []OAuthCredential) []*localv1.OAuthCredential {

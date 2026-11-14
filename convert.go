@@ -21,6 +21,7 @@ func fromProtoSandbox(in *localv1.Sandbox) (*Sandbox, error) {
 		Image:         in.GetImage(),
 		Workspace:     in.GetWorkspace(),
 		Workspaces:    fromProtoWorkspaces(in.GetWorkspaces()),
+		Clone:         fromProtoClone(in.GetCloneInfo()),
 		Ports:         fromProtoPorts(in.GetPorts()),
 		Allow:         fromProtoRules(in.GetAllow()),
 		Deny:          fromProtoRules(in.GetDeny()),
@@ -159,7 +160,9 @@ func operationState(v localv1.OperationState) string {
 func toProtoWorkspaces(workspaces []Workspace) []*localv1.Workspace {
 	out := make([]*localv1.Workspace, 0, len(workspaces))
 	for i := range workspaces {
-		out = append(out, &localv1.Workspace{Path: workspaces[i].Path, ReadOnly: workspaces[i].ReadOnly})
+		out = append(out, &localv1.Workspace{
+			Path: workspaces[i].Path, ReadOnly: workspaces[i].ReadOnly, GuestPath: workspaces[i].GuestPath,
+		})
 	}
 	return out
 }
@@ -170,9 +173,32 @@ func fromProtoWorkspaces(workspaces []*localv1.Workspace) []Workspace {
 		if workspace == nil {
 			continue
 		}
-		out = append(out, Workspace{Path: workspace.GetPath(), ReadOnly: workspace.GetReadOnly()})
+		out = append(out, Workspace{
+			Path: workspace.GetPath(), ReadOnly: workspace.GetReadOnly(), GuestPath: workspace.GetGuestPath(),
+		})
 	}
 	return out
+}
+
+func toProtoClone(clone *CloneOptions) *localv1.CloneOptions {
+	if clone == nil {
+		return nil
+	}
+	return &localv1.CloneOptions{SourceWorkspacePath: clone.SourceWorkspacePath, GuestWorkdir: clone.GuestWorkdir}
+}
+
+func fromProtoClone(clone *localv1.CloneInfo) *CloneInfo {
+	if clone == nil {
+		return nil
+	}
+	var endpoint *GitEndpoint
+	if clone.GetGitEndpoint() != nil {
+		endpoint = &GitEndpoint{
+			HostIP: clone.GetGitEndpoint().GetHostIp(), Port: clone.GetGitEndpoint().GetPort(),
+			Repository: clone.GetGitEndpoint().GetRepository(),
+		}
+	}
+	return &CloneInfo{GuestWorkdir: clone.GetGuestWorkdir(), RemoteName: clone.GetRemoteName(), GitEndpoint: endpoint}
 }
 
 func toProtoPorts(ports []Port) []*localv1.Port {

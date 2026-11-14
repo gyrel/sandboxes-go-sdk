@@ -49,6 +49,11 @@ func TestClientGetAndList(t *testing.T) {
 		sb.Agent != "shell" || !sb.Detached || sb.PolicyProfile != "balanced" || sb.LastUsedAt.Unix() != 300 {
 		t.Fatalf("unexpected sandbox: %+v", sb)
 	}
+	if sb.Clone == nil || sb.Clone.GuestWorkdir != "/workspace/project" || sb.Clone.RemoteName != "origin" ||
+		sb.Clone.GitEndpoint == nil || sb.Clone.GitEndpoint.HostIP != "127.0.0.1" ||
+		sb.Clone.GitEndpoint.Port != 44121 || sb.Clone.GitEndpoint.Repository != "project.git" {
+		t.Fatalf("unexpected clone metadata: %+v", sb.Clone)
+	}
 
 	page, err := client.Sandboxes().List(context.Background(), ListOptions{PageSize: 10})
 	if err != nil {
@@ -438,6 +443,10 @@ func (fakeSandboxServer) Get(_ context.Context, req *localv1.GetRequest) (*local
 		StoppedAtUnix: 200,
 		Workspaces: []*localv1.Workspace{
 			{Path: "/work"}, {Path: "/docs", ReadOnly: true},
+		},
+		CloneInfo: &localv1.CloneInfo{
+			GuestWorkdir: "/workspace/project", RemoteName: "origin",
+			GitEndpoint: &localv1.GitEndpoint{HostIp: "127.0.0.1", Port: 44121, Repository: "project.git"},
 		},
 		Ports: []*localv1.Port{{Host: 8080, Guest: 3000, Protocol: "tcp"}},
 		Allow: []*localv1.NetworkRule{{Protocol: "tcp", Cidr: "0.0.0.0/0", Port: 80}},

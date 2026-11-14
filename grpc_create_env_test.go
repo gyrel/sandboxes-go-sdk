@@ -184,3 +184,76 @@ func TestCreateSendsWorkspaceGuestPathToSupportedDaemon(t *testing.T) {
 		t.Fatalf("workspace was not mapped to API request: %+v", req.GetWorkspaces())
 	}
 }
+
+func TestCreateFailsClosedWhenDaemonCloneSupportIsUnverified(t *testing.T) {
+	tests := []struct {
+		name       string
+		apiVersion string
+		versionErr error
+		wantCode   string
+	}{
+		{name: "older daemon version", apiVersion: "0.0.24", wantCode: errorCodeUnsupported},
+		{name: "unknown daemon version", apiVersion: "not-a-version", wantCode: errorCodeUnsupported},
+		{name: "version check unavailable", versionErr: status.Error(codes.Unimplemented, "version check unavailable"), wantCode: errorCodeInternal},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			listener := bufconn.Listen(1024 * 1024)
+			server := grpc.NewServer()
+			capture := captureCreateServer{
+				request: make(chan *localv1.CreateRequest, 1), apiVersion: tt.apiVersion, versionErr: tt.versionErr,
+			}
+			localv1.RegisterSandboxServiceServer(server, capture)
+			go func() { _ = server.Serve(listener) }()
+			t.Cleanup(server.Stop)
+			client, err := New(Config{Address: "bufnet", Dialer: func(ctx context.Context, _ string) (net.Conn, error) {
+				return listener.DialContext(ctx)
+			}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = client.Close() })
+
+			_, err = client.Sandboxes().Create(context.Background(), CreateRequest{
+				Clone: &CloneOptions{SourceWorkspacePath: "/host/project"},
+			})
+			var sdkErr *Error
+			if !errors.As(err, &sdkErr) || sdkErr.Code != tt.wantCode {
+				t.Fatalf("error=%v, want SDK error code %q", err, tt.wantCode)
+			}
+			select {
+			case req := <-capture.request:
+				t.Fatalf("daemon received clone Create request before version validation: %+v", req)
+			default:
+			}
+		})
+	}
+}
+
+func TestCreateSendsCloneOptionsToSupportedDaemon(t *testing.T) {
+	listener := bufconn.Listen(1024 * 1024)
+	server := grpc.NewServer()
+	guestWorkdir := "/workspace/project"
+	capture := captureCreateServer{request: make(chan *localv1.CreateRequest, 1), apiVersion: cloneMinimumAPIVersion}
+	localv1.RegisterSandboxServiceServer(server, capture)
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(server.Stop)
+	client, err := New(Config{Address: "bufnet", Dialer: func(ctx context.Context, _ string) (net.Conn, error) {
+		return listener.DialContext(ctx)
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	if _, err := client.Sandboxes().Create(context.Background(), CreateRequest{
+		Clone: &CloneOptions{SourceWorkspacePath: "/host/project", GuestWorkdir: &guestWorkdir},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	request := <-capture.request
+	clone := request.GetClone()
+	if clone == nil || clone.GetSourceWorkspacePath() != "/host/project" || clone.GetGuestWorkdir() != guestWorkdir {
+		t.Fatalf("clone options were not mapped to API request: %+v", clone)
+	}
+}

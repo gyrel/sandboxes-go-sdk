@@ -64,6 +64,12 @@ policy decisions. A non-empty `GuestPath` requires local API version 0.0.25 or
 newer; the SDK checks the daemon version before Create so older servers cannot
 silently ignore the destination.
 
+`CreateRequest.Clone` carries clone-mode source path and optional guest workdir.
+Returned `Sandbox.Clone` contains the guest workdir, remote name, and an
+optional `GitEndpoint`. The SDK preserves endpoint absence and requires API
+0.0.25 or newer before sending any clone request, so older daemons cannot ignore
+the new request field.
+
 `sandboxes.MCP(client).Call` invokes a named server tool through the daemon's
 MCP gateway. It validates that arguments are a JSON object and checks for API
 v0.0.18 before sending the request. It does not grant approval or implement

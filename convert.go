@@ -21,6 +21,7 @@ func fromProtoSandbox(in *localv1.Sandbox) (*Sandbox, error) {
 		Image:         in.GetImage(),
 		Workspace:     in.GetWorkspace(),
 		Workspaces:    fromProtoWorkspaces(in.GetWorkspaces()),
+		Clone:         fromProtoClone(in.GetCloneInfo()),
 		Ports:         fromProtoPorts(in.GetPorts()),
 		Allow:         fromProtoRules(in.GetAllow()),
 		Deny:          fromProtoRules(in.GetDeny()),
@@ -177,6 +178,27 @@ func fromProtoWorkspaces(workspaces []*localv1.Workspace) []Workspace {
 		})
 	}
 	return out
+}
+
+func toProtoClone(clone *CloneOptions) *localv1.CloneOptions {
+	if clone == nil {
+		return nil
+	}
+	return &localv1.CloneOptions{SourceWorkspacePath: clone.SourceWorkspacePath, GuestWorkdir: clone.GuestWorkdir}
+}
+
+func fromProtoClone(clone *localv1.CloneInfo) *CloneInfo {
+	if clone == nil {
+		return nil
+	}
+	var endpoint *GitEndpoint
+	if clone.GetGitEndpoint() != nil {
+		endpoint = &GitEndpoint{
+			HostIP: clone.GetGitEndpoint().GetHostIp(), Port: clone.GetGitEndpoint().GetPort(),
+			Repository: clone.GetGitEndpoint().GetRepository(),
+		}
+	}
+	return &CloneInfo{GuestWorkdir: clone.GetGuestWorkdir(), RemoteName: clone.GetRemoteName(), GitEndpoint: endpoint}
 }
 
 func toProtoPorts(ports []Port) []*localv1.Port {

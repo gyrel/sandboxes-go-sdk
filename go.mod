@@ -2,6 +2,8 @@ module github.com/rheic/sandboxes-go-sdk
 
 go 1.27
 
+toolchain go1.27.4
+
 require (
 	github.com/Microsoft/go-winio v0.6.4
 	github.com/rheic/sandboxes-api v0.0.25

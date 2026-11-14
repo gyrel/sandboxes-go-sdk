@@ -56,6 +56,14 @@ that recognizes the API version but does not implement the requested broker
 must still reject the request. Optional nested OAuth messages use pointers so
 omitted fields, such as sentinels in passthrough mode, remain absent on the wire.
 
+`CreateRequest.Workspaces` and returned `Sandbox.Workspaces` expose both the
+host `Path` and optional guest `GuestPath`. `GuestPath` selects the absolute
+destination inside the VM; an empty value retains the daemon's same-path
+behavior. The SDK maps this field without resolving host paths or making mount
+policy decisions. A non-empty `GuestPath` requires local API version 0.0.25 or
+newer; the SDK checks the daemon version before Create so older servers cannot
+silently ignore the destination.
+
 `sandboxes.MCP(client).Call` invokes a named server tool through the daemon's
 MCP gateway. It validates that arguments are a JSON object and checks for API
 v0.0.18 before sending the request. It does not grant approval or implement

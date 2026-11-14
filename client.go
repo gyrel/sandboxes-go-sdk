@@ -435,10 +435,11 @@ type Port struct {
 	HostIP   string
 }
 
-// Workspace is a host path mounted at the same absolute path in the guest.
+// Workspace is a host path mounted in the guest.
 type Workspace struct {
-	Path     string
-	ReadOnly bool
+	Path      string
+	ReadOnly  bool
+	GuestPath string
 }
 
 type CreateRequest struct {

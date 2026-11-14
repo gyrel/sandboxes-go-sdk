@@ -214,13 +214,23 @@ func (c *client) context(ctx context.Context) (context.Context, context.CancelFu
 type sandboxClient struct{ c *client }
 
 func (s sandboxClient) Create(ctx context.Context, req CreateRequest) (*Operation, error) {
-	if len(req.OAuthCredentials) > 0 {
+	needsGuestPath := false
+	for i := range req.Workspaces {
+		if req.Workspaces[i].GuestPath != "" {
+			needsGuestPath = true
+			break
+		}
+	}
+	if len(req.OAuthCredentials) > 0 || needsGuestPath {
 		version, err := Version(s.c).Get(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("verify daemon OAuth metadata support: %w", err)
+			return nil, fmt.Errorf("verify daemon create metadata support: %w", err)
 		}
-		if !apiVersionAtLeast(version.APIVersion, oauthCredentialsMinimumAPIVersion) {
+		if len(req.OAuthCredentials) > 0 && !apiVersionAtLeast(version.APIVersion, oauthCredentialsMinimumAPIVersion) {
 			return nil, &Error{Code: errorCodeUnsupported, Message: "daemon API does not support OAuth credential metadata"}
+		}
+		if needsGuestPath && !apiVersionAtLeast(version.APIVersion, guestPathMinimumAPIVersion) {
+			return nil, &Error{Code: errorCodeUnsupported, Message: "daemon API does not support workspace guest paths"}
 		}
 	}
 	ctx, cancel := s.c.context(ctx)

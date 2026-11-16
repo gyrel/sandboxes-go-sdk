@@ -1,6 +1,7 @@
 package sandboxes
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -111,6 +112,8 @@ func TestSecretListMatchesSbxJSONShape(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Git may check the golden file out with CRLF on Windows runners.
+	want = bytes.ReplaceAll(want, []byte("\r\n"), []byte("\n"))
 	if strings.TrimSpace(string(got)) != strings.TrimSpace(string(want)) {
 		t.Fatalf("secret JSON shape mismatch\n got: %s\nwant: %s", got, want)
 	}

@@ -186,6 +186,7 @@ func (c *client) UpdatePorts(ctx context.Context, id string, ports []Port) (*San
 }
 
 func (c *client) ListRegistryCredentials(ctx context.Context) ([]RegistryCredentialSummary, error) {
+	metadata := secretMetadataSupported(ctx, c)
 	ctx, cancel := c.context(ctx)
 	defer cancel()
 	resp, err := c.registry.List(ctx, &localv1.RegistryCredentialServiceListRequest{})
@@ -194,10 +195,16 @@ func (c *client) ListRegistryCredentials(ctx context.Context) ([]RegistryCredent
 	}
 	out := make([]RegistryCredentialSummary, 0, len(resp.GetCredentials()))
 	for _, item := range resp.GetCredentials() {
-		out = append(out, RegistryCredentialSummary{
+		summary := RegistryCredentialSummary{
 			Registry: item.GetRegistry(), Username: item.GetUsername(),
 			Scope: item.GetScope(), SandboxName: item.GetSandboxName(),
-		})
+		}
+		if metadata {
+			summary.CreatedAt = unixTime(item.GetCreatedAtUnix())
+			summary.UpdatedAt = unixTime(item.GetUpdatedAtUnix())
+			summary.Origin = SecretOrigin(item.GetOrigin())
+		}
+		out = append(out, summary)
 	}
 	return out, nil
 }

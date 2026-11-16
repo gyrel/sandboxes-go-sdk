@@ -338,11 +338,15 @@ func (unsupportedPortService) UpdatePorts(context.Context, string, []Port) (*San
 }
 
 // RegistryCredentialSummary is non-secret metadata for a stored registry login.
+// It never contains a password or other secret material.
 type RegistryCredentialSummary struct {
 	Registry    string
 	Username    string
 	Scope       string
 	SandboxName string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	Origin      SecretOrigin
 }
 
 // RegistryCredentialLister is an optional capability for listing stored

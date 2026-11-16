@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Update the API module dependency to v0.0.28; its RPC contract remains 0.0.27.
+
 - Remove the mandatory external release-review gate while retaining candidate validation, CI, and immutable tag protections.
 - Accept an `Unreleased` heading before the newest version during release validation.
 

@@ -12,6 +12,23 @@ const cloneMinimumAPIVersion = "0.0.25"
 
 const dynamicSecretSourcesMinimumAPIVersion = "0.0.16"
 
+// secretMetadataMinimumAPIVersion is the first contract that returns
+// non-secret inventory metadata (timestamps, source kind, refresh capability
+// and origin) with service and registry secret summaries.
+const secretMetadataMinimumAPIVersion = "0.0.27"
+
+// secretMetadataSupported reports whether the daemon can return secret
+// inventory metadata. Older daemons already work for the base inventory, so a
+// missing or unreadable version falls back to the basic shape instead of
+// failing the whole listing.
+func secretMetadataSupported(ctx context.Context, c Client) bool {
+	version, err := Version(c).Get(ctx)
+	if err != nil {
+		return false
+	}
+	return apiVersionAtLeast(version.APIVersion, secretMetadataMinimumAPIVersion)
+}
+
 func apiVersionAtLeast(actual, minimum string) bool {
 	parse := func(version string) ([3]uint64, bool) {
 		version = strings.TrimPrefix(version, "v")

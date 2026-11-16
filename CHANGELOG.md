@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — API contract 0.0.27
+
+- Expose non-secret service-secret metadata as typed Go values: creation and
+  update times, source kind (`value`, `reference`, `command`), refresh policy
+  and capability, coarse secret type, and origin. Secret values, references,
+  commands, and environment values remain unrepresentable in the public type.
+- Expose creation and update times and origin for registry credential summaries.
+- Require daemon API contract v0.0.27 before populating the new metadata while
+  keeping the base inventory available against older daemons.
+
 ## v0.0.22 — 2026-11-09
 
 - Reject all static remote MCP headers; every remote header must use a host-vault reference.

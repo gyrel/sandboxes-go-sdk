@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.0.26 — 2026-11-16
+
+### Changed
+
+- Remove the mandatory external release-review gate while retaining candidate validation, CI, and immutable tag protections.
+- Accept an `Unreleased` heading before the newest version during release validation.
+
 ## Unreleased
 
 ## v0.0.25 — 2026-11-16 (API contract 0.0.27)

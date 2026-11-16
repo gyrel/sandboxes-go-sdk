@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — API contract 0.0.27
+## Unreleased
+
+## v0.0.25 — 2026-11-16 (API contract 0.0.27)
 
 - Expose non-secret service-secret metadata as typed Go values: creation and
   update times, source kind (`value`, `reference`, `command`), refresh policy

@@ -222,6 +222,9 @@ type sandboxClient struct{ c *client }
 
 //nolint:gocritic // SandboxService's public Create contract passes CreateRequest by value.
 func (s sandboxClient) Create(ctx context.Context, req CreateRequest) (*Operation, error) {
+	if err := validateSkillsOptions(req.Skills); err != nil {
+		return nil, err
+	}
 	if err := requireCreateFeatureVersions(ctx, Version(s.c), &req); err != nil {
 		return nil, err
 	}
@@ -236,6 +239,7 @@ func (s sandboxClient) Create(ctx context.Context, req CreateRequest) (*Operatio
 		MemoryMib:        req.MemoryMiB,
 		Workspaces:       toProtoWorkspaces(req.Workspaces),
 		Clone:            toProtoClone(req.Clone),
+		Skills:           toProtoSkills(req.Skills),
 		Ports:            toProtoPorts(req.Ports),
 		Allow:            toProtoRules(req.Allow),
 		Deny:             toProtoRules(req.Deny),
@@ -253,15 +257,9 @@ func (s sandboxClient) Create(ctx context.Context, req CreateRequest) (*Operatio
 }
 
 func requireCreateFeatureVersions(ctx context.Context, versionService VersionService, req *CreateRequest) error {
-	needsGuestPath := false
-	for i := range req.Workspaces {
-		if req.Workspaces[i].GuestPath != "" {
-			needsGuestPath = true
-			break
-		}
-	}
+	needsGuestPath := requiresGuestPath(req.Workspaces)
 	needsClone := req.Clone != nil
-	if len(req.OAuthCredentials) == 0 && !needsGuestPath && !needsClone {
+	if len(req.OAuthCredentials) == 0 && !needsGuestPath && !needsClone && req.Skills == nil {
 		return nil
 	}
 	version, err := versionService.Get(ctx)
@@ -277,7 +275,19 @@ func requireCreateFeatureVersions(ctx context.Context, versionService VersionSer
 	if needsClone && !apiVersionAtLeast(version.APIVersion, cloneMinimumAPIVersion) {
 		return &Error{Code: errorCodeUnsupported, Message: "daemon API does not support clone mode"}
 	}
+	if req.Skills != nil && !apiVersionAtLeast(version.APIVersion, skillsMinimumAPIVersion) {
+		return &Error{Code: errorCodeUnsupported, Message: "daemon API does not support shared skills"}
+	}
 	return nil
+}
+
+func requiresGuestPath(workspaces []Workspace) bool {
+	for i := range workspaces {
+		if workspaces[i].GuestPath != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func toProtoOAuthCredentials(credentials []OAuthCredential) []*localv1.OAuthCredential {

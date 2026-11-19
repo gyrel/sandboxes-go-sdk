@@ -22,6 +22,7 @@ func fromProtoSandbox(in *localv1.Sandbox) (*Sandbox, error) {
 		Workspace:     in.GetWorkspace(),
 		Workspaces:    fromProtoWorkspaces(in.GetWorkspaces()),
 		Clone:         fromProtoClone(in.GetCloneInfo()),
+		Skills:        fromProtoSkills(in.GetSkills()),
 		Ports:         fromProtoPorts(in.GetPorts()),
 		Allow:         fromProtoRules(in.GetAllow()),
 		Deny:          fromProtoRules(in.GetDeny()),
@@ -39,6 +40,12 @@ func fromProtoSandbox(in *localv1.Sandbox) (*Sandbox, error) {
 }
 
 func validateProtoSandbox(in *localv1.Sandbox) error {
+	if in.GetSkills() != nil {
+		skills := fromProtoSkills(in.GetSkills())
+		if err := validateSkillsOptions(skills); err != nil {
+			return &Error{Code: errorCodeInternal, Message: "invalid skills configuration in daemon response"}
+		}
+	}
 	for _, port := range in.GetPorts() {
 		if port == nil || port.GetHost() > 65535 || port.GetGuest() > 65535 {
 			return &Error{Code: errorCodeInternal, Message: "invalid port in daemon response"}

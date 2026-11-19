@@ -9,6 +9,7 @@ import (
 const oauthCredentialsMinimumAPIVersion = "0.0.15"
 const guestPathMinimumAPIVersion = "0.0.25"
 const cloneMinimumAPIVersion = "0.0.25"
+const skillsMinimumAPIVersion = "0.0.28"
 
 const dynamicSecretSourcesMinimumAPIVersion = "0.0.16"
 

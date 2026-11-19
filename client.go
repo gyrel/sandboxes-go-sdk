@@ -446,6 +446,22 @@ type Workspace struct {
 	GuestPath string
 }
 
+// SkillsMode selects how the guest may access its shared skills store.
+type SkillsMode string
+
+const (
+	SkillsOff       SkillsMode = "off"
+	SkillsReadOnly  SkillsMode = "readonly"
+	SkillsReadWrite SkillsMode = "readwrite"
+)
+
+// SkillsOptions describes a host store explicitly shared with the sandbox.
+// Read-write access lets the guest modify skills used by other sandboxes.
+type SkillsOptions struct {
+	Mode      SkillsMode
+	StorePath string
+}
+
 // CloneOptions selects an existing host workspace as the source for clone mode.
 type CloneOptions struct {
 	SourceWorkspacePath string
@@ -476,6 +492,7 @@ type CreateRequest struct {
 	MemoryMiB     uint32
 	Workspaces    []Workspace
 	Clone         *CloneOptions
+	Skills        *SkillsOptions
 	Ports         []Port
 	Allow         []NetworkRule
 	Deny          []NetworkRule
@@ -545,6 +562,7 @@ type Sandbox struct {
 	Workspace     string
 	Workspaces    []Workspace
 	Clone         *CloneInfo
+	Skills        *SkillsOptions
 	Ports         []Port
 	Allow         []NetworkRule
 	Deny          []NetworkRule

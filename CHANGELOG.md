@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.0.27 — 2026-11-19
+
+### Added
+
+- Add typed `SkillsMode` (`off`, `readonly`, `readwrite`) and `SkillsOptions`
+  to create requests and sandbox responses.
+- Gate shared skills on API contract 0.0.28 so an older daemon is never asked to
+  silently downgrade or ignore a requested mode.
+- Update the API module dependency to v0.0.29 (contract 0.0.28).
+
+
 ## v0.0.26 — 2026-11-16
 
 ### Changed

@@ -132,6 +132,10 @@ type AccountCredentialStatus struct {
 	Present            bool
 	RefreshPresent     bool
 	RefreshCoordinated bool
+	// Username is the signed-in account label stored at login (contract
+	// 0.0.30+); empty for older daemons and providers without a label. It is
+	// display identity, not credential material.
+	Username string
 }
 
 // AccountStatusService reports only whether local credentials are stored. It

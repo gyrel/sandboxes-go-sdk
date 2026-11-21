@@ -564,6 +564,7 @@ func (a accountServiceClient) StatusDetail(ctx context.Context, provider string)
 		Present:            resp.GetCredentialPresent(),
 		RefreshPresent:     resp.GetRefreshPresent(),
 		RefreshCoordinated: resp.GetRefreshCoordinated(),
+		Username:           resp.GetUsername(),
 	}, nil
 }
 

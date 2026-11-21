@@ -33,3 +33,18 @@ func TestSandboxConversionRejectsInvalidNetworkFields(t *testing.T) {
 		t.Fatalf("proto ports=%+v", proto)
 	}
 }
+
+func TestOperationProgressMapping(t *testing.T) {
+	if op := fromProtoOperation(&localv1.Operation{Id: "op1"}); op.Progress != nil {
+		t.Fatalf("absent progress must map to nil: %+v", op.Progress)
+	}
+	op := fromProtoOperation(&localv1.Operation{
+		Id:        "op1",
+		SandboxId: "sb1",
+		State:     localv1.OperationState_OPERATION_STATE_RUNNING,
+		Progress:  &localv1.Progress{Phase: "pulling", Completed: 3, Total: 7},
+	})
+	if op.Progress == nil || op.Progress.Phase != "pulling" || op.Progress.Completed != 3 || op.Progress.Total != 7 {
+		t.Fatalf("progress mapping=%+v", op.Progress)
+	}
+}

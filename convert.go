@@ -81,7 +81,15 @@ func fromProtoOperation(in *localv1.Operation) *Operation {
 		Error:      in.GetError(),
 		CreatedAt:  unixTime(in.GetCreatedAtUnix()),
 		UpdatedAt:  unixTime(in.GetUpdatedAtUnix()),
+		Progress:   fromProtoProgress(in.GetProgress()),
 	}
+}
+
+func fromProtoProgress(in *localv1.Progress) *Progress {
+	if in == nil {
+		return nil
+	}
+	return &Progress{Phase: in.GetPhase(), Completed: in.GetCompleted(), Total: in.GetTotal()}
 }
 
 func fromProtoEvent(in *localv1.WatchResponse) (*Event, error) {

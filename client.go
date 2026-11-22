@@ -132,6 +132,10 @@ type AccountCredentialStatus struct {
 	Present            bool
 	RefreshPresent     bool
 	RefreshCoordinated bool
+	// Username is the signed-in account label stored at login (contract
+	// 0.0.30+); empty for older daemons and providers without a label. It is
+	// display identity, not credential material.
+	Username string
 }
 
 // AccountStatusService reports only whether local credentials are stored. It
@@ -588,6 +592,19 @@ type Operation struct {
 	Error      string
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
+	// Progress is advisory display data for in-flight operations (contract
+	// 0.0.29+). It is nil for terminal operations and older daemons; it is
+	// never an authorization or lifecycle signal.
+	Progress *Progress
+}
+
+// Progress describes the current phase of a long-running operation for
+// human-facing rendering (for example image pull layer counts). Lifecycle
+// decisions must use Operation.State.
+type Progress struct {
+	Phase     string
+	Completed int64
+	Total     int64
 }
 
 // WatchOptions controls an event stream.

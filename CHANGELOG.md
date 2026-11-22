@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added (templates)
+
+- `Templates(client)` service: Save/Load/Remove/List/Inspect against daemon
+  contract 0.0.33, with presence-only inspect results and an unsupported
+  fallback matching the optional-service pattern. api bumped to v0.0.33.
+
 ### Added
 
 - `NetworkRule.Methods/Path/Query` (plus `QueryCondition`) surface HTTP L7

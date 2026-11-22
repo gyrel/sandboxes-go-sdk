@@ -16,6 +16,7 @@ type templateFakeServer struct {
 	lastSave   *localv1.TemplateServiceSaveRequest
 	lastLoad   *localv1.TemplateServiceLoadRequest
 	lastRemove *localv1.TemplateServiceRemoveRequest
+	lastExport *localv1.TemplateServiceExportRequest
 }
 
 func (s *templateFakeServer) Save(_ context.Context, req *localv1.TemplateServiceSaveRequest) (*localv1.TemplateServiceSaveResponse, error) {
@@ -50,6 +51,11 @@ func (s *templateFakeServer) Inspect(context.Context, *localv1.TemplateServiceIn
 		Template: &localv1.Template{Name: "docker.io/library/a:v1"},
 		EnvNames: []string{"PATH", "CODEX_HOME"}, WorkingDir: "/workspace", User: "agent",
 	}, nil
+}
+
+func (s *templateFakeServer) Export(_ context.Context, req *localv1.TemplateServiceExportRequest) (*localv1.TemplateServiceExportResponse, error) {
+	s.lastExport = req
+	return &localv1.TemplateServiceExportResponse{SizeBytes: 777}, nil
 }
 
 func newTemplateClient(t *testing.T) (Client, *templateFakeServer) {
@@ -102,6 +108,17 @@ func TestTemplatesServiceRoundTrip(t *testing.T) {
 	}
 }
 
+func TestTemplatesExportPassthrough(t *testing.T) {
+	client, fake := newTemplateClient(t)
+	size, err := Templates(client).Export(context.Background(), "docker.io/library/mytpl:v1", "/tmp/out.tar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if size != 777 || fake.lastExport.GetName() != "docker.io/library/mytpl:v1" || fake.lastExport.GetTarPath() != "/tmp/out.tar" {
+		t.Fatalf("size=%d req=%+v", size, fake.lastExport)
+	}
+}
+
 func TestTemplatesUnsupportedFallback(t *testing.T) {
 	svc := Templates(bareClient{})
 	if _, err := svc.List(context.Background()); err == nil {
@@ -114,6 +131,9 @@ func TestTemplatesUnsupportedFallback(t *testing.T) {
 	}
 	if _, err := Templates(bareClient{}).Save(context.Background(), "x", "y", ""); err == nil {
 		t.Fatal("save fallback must refuse")
+	}
+	if _, err := Templates(bareClient{}).Export(context.Background(), "x", "/tmp/y"); err == nil {
+		t.Fatal("export fallback must refuse")
 	}
 }
 

@@ -76,6 +76,11 @@ func (c *client) DockerPATAccountService() DockerPATAccountService { return acco
 func (c *client) PolicyService() PolicyService { return c }
 
 func (c *client) UpdatePolicy(ctx context.Context, id string, allow, deny []NetworkRule) (*Sandbox, error) {
+	if rulesHaveHTTPConditions(allow) || rulesHaveHTTPConditions(deny) {
+		if err := requireAPIVersion(ctx, c, httpPolicyConditionsMinimumAPIVersion, "HTTP policy conditions"); err != nil {
+			return nil, err
+		}
+	}
 	ctx, cancel := c.context(ctx)
 	defer cancel()
 	resp, err := c.sandboxes.UpdatePolicy(ctx, &localv1.UpdatePolicyRequest{
@@ -88,6 +93,11 @@ func (c *client) UpdatePolicy(ctx context.Context, id string, allow, deny []Netw
 }
 
 func (c *client) MutatePolicy(ctx context.Context, id, action string, rule NetworkRule) (*Sandbox, error) {
+	if rulesHaveHTTPConditions([]NetworkRule{rule}) {
+		if err := requireAPIVersion(ctx, c, httpPolicyConditionsMinimumAPIVersion, "HTTP policy conditions"); err != nil {
+			return nil, err
+		}
+	}
 	ctx, cancel := c.context(ctx)
 	defer cancel()
 	resp, err := c.sandboxes.MutatePolicy(ctx, &localv1.MutatePolicyRequest{
@@ -120,6 +130,11 @@ func (c *client) GetGlobalPolicy(ctx context.Context) ([]NetworkRule, []NetworkR
 }
 
 func (c *client) MutateGlobalPolicy(ctx context.Context, action string, rule NetworkRule) ([]NetworkRule, []NetworkRule, error) {
+	if rulesHaveHTTPConditions([]NetworkRule{rule}) {
+		if err := requireAPIVersion(ctx, c, httpPolicyConditionsMinimumAPIVersion, "HTTP policy conditions"); err != nil {
+			return nil, nil, err
+		}
+	}
 	ctx, cancel := c.context(ctx)
 	defer cancel()
 	resp, err := c.sandboxes.MutateGlobalPolicy(ctx, &localv1.MutateGlobalPolicyRequest{
@@ -131,11 +146,17 @@ func (c *client) MutateGlobalPolicy(ctx context.Context, action string, rule Net
 	return fromProtoRules(resp.GetAllow()), fromProtoRules(resp.GetDeny()), nil
 }
 
-func (c *client) Check(ctx context.Context, id, protocol, address, domain string, port uint16) (PolicyDecision, error) {
+func (c *client) Check(ctx context.Context, id, protocol, address, domain string, port uint16, url, method string) (PolicyDecision, error) {
+	if url != "" || method != "" {
+		if err := requireAPIVersion(ctx, c, policyCheckURLMinimumAPIVersion, "policy check URL targets"); err != nil {
+			return PolicyDecision{}, err
+		}
+	}
 	ctx, cancel := c.context(ctx)
 	defer cancel()
 	resp, err := c.sandboxes.CheckPolicy(ctx, &localv1.CheckPolicyRequest{
 		SandboxId: id, Protocol: protocol, Address: address, Domain: domain, Port: uint32(port),
+		Url: url, Method: method,
 	})
 	if err != nil {
 		return PolicyDecision{}, mapError(err)
@@ -256,27 +277,58 @@ func (s sandboxClient) Create(ctx context.Context, req CreateRequest) (*Operatio
 	return fromProtoOperation(resp.GetOperation()), nil
 }
 
+// rulesHaveHTTPConditions reports whether any rule carries HTTP L7
+// conditions that a pre-0.0.31 daemon would silently drop (unknown proto
+// fields), which would turn a conditioned allow into a plain domain allow.
+// Refusing client-side keeps the fail-closed property independent of the
+// daemon version.
+func rulesHaveHTTPConditions(rules []NetworkRule) bool {
+	for i := range rules {
+		if len(rules[i].Methods) > 0 || rules[i].Path != "" || len(rules[i].Query) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func requireAPIVersion(ctx context.Context, c *client, minimum, feature string) error {
+	version, err := Version(c).Get(ctx)
+	if err != nil {
+		return fmt.Errorf("verify daemon %s support: %w", feature, err)
+	}
+	if !apiVersionAtLeast(version.APIVersion, minimum) {
+		return &Error{Code: errorCodeUnsupported, Message: "daemon API does not support " + feature}
+	}
+	return nil
+}
+
 func requireCreateFeatureVersions(ctx context.Context, versionService VersionService, req *CreateRequest) error {
-	needsGuestPath := requiresGuestPath(req.Workspaces)
-	needsClone := req.Clone != nil
-	if len(req.OAuthCredentials) == 0 && !needsGuestPath && !needsClone && req.Skills == nil {
+	features := []struct {
+		required bool
+		minimum  string
+		feature  string
+	}{
+		{len(req.OAuthCredentials) > 0, oauthCredentialsMinimumAPIVersion, "OAuth credential metadata"},
+		{requiresGuestPath(req.Workspaces), guestPathMinimumAPIVersion, "workspace guest paths"},
+		{req.Clone != nil, cloneMinimumAPIVersion, "clone mode"},
+		{req.Skills != nil, skillsMinimumAPIVersion, "shared skills"},
+		{rulesHaveHTTPConditions(req.Allow) || rulesHaveHTTPConditions(req.Deny), httpPolicyConditionsMinimumAPIVersion, "HTTP policy conditions"},
+	}
+	needed := false
+	for _, feature := range features {
+		needed = needed || feature.required
+	}
+	if !needed {
 		return nil
 	}
 	version, err := versionService.Get(ctx)
 	if err != nil {
 		return fmt.Errorf("verify daemon create feature support: %w", err)
 	}
-	if len(req.OAuthCredentials) > 0 && !apiVersionAtLeast(version.APIVersion, oauthCredentialsMinimumAPIVersion) {
-		return &Error{Code: errorCodeUnsupported, Message: "daemon API does not support OAuth credential metadata"}
-	}
-	if needsGuestPath && !apiVersionAtLeast(version.APIVersion, guestPathMinimumAPIVersion) {
-		return &Error{Code: errorCodeUnsupported, Message: "daemon API does not support workspace guest paths"}
-	}
-	if needsClone && !apiVersionAtLeast(version.APIVersion, cloneMinimumAPIVersion) {
-		return &Error{Code: errorCodeUnsupported, Message: "daemon API does not support clone mode"}
-	}
-	if req.Skills != nil && !apiVersionAtLeast(version.APIVersion, skillsMinimumAPIVersion) {
-		return &Error{Code: errorCodeUnsupported, Message: "daemon API does not support shared skills"}
+	for _, feature := range features {
+		if feature.required && !apiVersionAtLeast(version.APIVersion, feature.minimum) {
+			return &Error{Code: errorCodeUnsupported, Message: "daemon API does not support " + feature.feature}
+		}
 	}
 	return nil
 }

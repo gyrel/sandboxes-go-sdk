@@ -45,6 +45,9 @@ type TemplateService interface {
 	Remove(ctx context.Context, name string, force bool) (bool, error)
 	List(ctx context.Context) ([]Template, error)
 	Inspect(ctx context.Context, name string) (TemplateInspectResult, error)
+	// Export writes a docker-save archive of a recorded template to
+	// tarPath and reports its size. Existing files are refused.
+	Export(ctx context.Context, name, tarPath string) (int64, error)
 }
 
 // TemplateServiceProvider is implemented by clients that expose templates.
@@ -85,6 +88,10 @@ func (unsupportedTemplateService) List(context.Context) ([]Template, error) {
 
 func (unsupportedTemplateService) Inspect(context.Context, string) (TemplateInspectResult, error) {
 	return TemplateInspectResult{}, &Error{Code: errorCodeUnsupported, Message: unsupportedTemplatesMessage}
+}
+
+func (unsupportedTemplateService) Export(context.Context, string, string) (int64, error) {
+	return 0, &Error{Code: errorCodeUnsupported, Message: unsupportedTemplatesMessage}
 }
 
 func (c *client) TemplateService() TemplateService { return templateClient{c: c} }
@@ -169,4 +176,14 @@ func fromProtoTemplate(t *localv1.Template) Template {
 		CreatedUnix: t.GetCreatedUnix(), BaseImage: t.GetBaseImage(),
 		Flavor: t.GetFlavor(), Layers: int(t.GetLayers()),
 	}
+}
+
+func (t templateClient) Export(ctx context.Context, name, tarPath string) (int64, error) {
+	ctx, cancel := t.c.context(ctx)
+	defer cancel()
+	resp, err := t.c.templates.Export(ctx, &localv1.TemplateServiceExportRequest{Name: name, TarPath: tarPath})
+	if err != nil {
+		return 0, mapError(err)
+	}
+	return resp.GetSizeBytes(), nil
 }

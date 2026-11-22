@@ -19,6 +19,7 @@ type client struct {
 	registry    localv1.RegistryCredentialServiceClient
 	accounts    localv1.AccountServiceClient
 	secrets     localv1.SecretServiceClient
+	templates   localv1.TemplateServiceClient
 	callTimeout time.Duration
 }
 
@@ -49,6 +50,7 @@ func New(cfg Config) (Client, error) {
 		registry:    localv1.NewRegistryCredentialServiceClient(conn),
 		accounts:    localv1.NewAccountServiceClient(conn),
 		secrets:     localv1.NewSecretServiceClient(conn),
+		templates:   localv1.NewTemplateServiceClient(conn),
 		callTimeout: cfg.CallTimeout,
 	}, nil
 }

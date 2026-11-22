@@ -48,3 +48,39 @@ func TestOperationProgressMapping(t *testing.T) {
 		t.Fatalf("progress mapping=%+v", op.Progress)
 	}
 }
+
+func TestNetworkRuleHTTPConditionsRoundTrip(t *testing.T) {
+	rules := []NetworkRule{
+		{Protocol: "tcp", Domain: "api.example.com",
+			Methods: []string{"GET", "ANY"}, Path: "/v1/**",
+			Query: []QueryCondition{{Name: "trace", Value: "*"}}},
+		{Protocol: "tcp", CIDR: "10.0.0.0/8", Port: 443},
+	}
+	proto := toProtoRules(rules)
+	if len(proto) != 2 {
+		t.Fatalf("proto rules=%d", len(proto))
+	}
+	if got := proto[0].GetPath(); got != "/v1/**" || len(proto[0].GetMethods()) != 2 {
+		t.Fatalf("toProtoRules lost HTTP conditions: %+v", proto[0])
+	}
+	if proto[0].GetQuery()[0].GetName() != "trace" || proto[0].GetQuery()[0].GetValue() != "*" {
+		t.Fatalf("query condition lost: %+v", proto[0].GetQuery())
+	}
+	if proto[1].GetPath() != "" || len(proto[1].GetMethods()) != 0 || proto[1].GetQuery() != nil {
+		t.Fatalf("unconditioned rule gained HTTP fields: %+v", proto[1])
+	}
+	back := fromProtoRules(proto)
+	if len(back) != 2 || back[0].Path != "/v1/**" || len(back[0].Methods) != 2 ||
+		back[0].Query[0] != (QueryCondition{Name: "trace", Value: "*"}) {
+		t.Fatalf("round trip mismatch: %+v", back)
+	}
+	if len(back[1].Methods) != 0 || back[1].Path != "" || len(back[1].Query) != 0 {
+		t.Fatalf("unconditioned rule must stay empty: %+v", back[1])
+	}
+	// Degraded daemons (pre 0.0.31) return rules without HTTP fields: the
+	// client must see zero conditions, not fabricate them.
+	old := fromProtoRules([]*localv1.NetworkRule{{Protocol: "tcp", Domain: "x.example.com"}})
+	if len(old) != 1 || len(old[0].Methods) != 0 || old[0].Path != "" || len(old[0].Query) != 0 {
+		t.Fatalf("old daemon degradation mismatch: %+v", old)
+	}
+}

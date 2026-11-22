@@ -426,13 +426,28 @@ type OperationService interface {
 }
 
 // CreateRequest describes a sandbox create request.
-// NetworkRule is a CIDR/protocol/port egress rule.
+// NetworkRule is a CIDR/protocol/port egress rule. Methods/Path/Query carry
+// HTTP L7 conditions (contract 0.0.31+): canonical upper-case methods where
+// "ANY" marks the rule HTTP-conditioned, a segment-aware glob path ("**"
+// spans segments) and query conditions that must all match (exact name, glob
+// value). Daemons below contract 0.0.31 reject HTTP-conditioned rules rather
+// than ignoring the conditions.
 type NetworkRule struct {
 	Protocol string
 	CIDR     string
 	Port     uint16
 	Domain   string
 	RuleID   string
+	Methods  []string
+	Path     string
+	Query    []QueryCondition
+}
+
+// QueryCondition requires one HTTP query parameter name with a value matching
+// the glob pattern in Value.
+type QueryCondition struct {
+	Name  string
+	Value string
 }
 
 // Port maps a host loopback address/port to a guest port.

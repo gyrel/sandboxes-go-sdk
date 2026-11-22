@@ -248,7 +248,7 @@ type PolicyService interface {
 	SetPolicyProfile(ctx context.Context, profile string) (string, error)
 	GetGlobalPolicy(ctx context.Context) (allow, deny []NetworkRule, err error)
 	MutateGlobalPolicy(ctx context.Context, action string, rule NetworkRule) (allow, deny []NetworkRule, err error)
-	Check(ctx context.Context, id, protocol, address, domain string, port uint16) (PolicyDecision, error)
+	Check(ctx context.Context, id, protocol, address, domain string, port uint16, url, method string) (PolicyDecision, error)
 	Refresh(ctx context.Context) (applied int, err error)
 	ResetGlobal(ctx context.Context) (allow, deny []NetworkRule, profile string, err error)
 }
@@ -302,7 +302,7 @@ func (unsupportedPolicyService) MutateGlobalPolicy(context.Context, string, Netw
 	return nil, nil, &Error{Code: errorCodeUnsupported, Message: "global policy is not supported by this client"}
 }
 
-func (unsupportedPolicyService) Check(context.Context, string, string, string, string, uint16) (PolicyDecision, error) {
+func (unsupportedPolicyService) Check(context.Context, string, string, string, string, uint16, string, string) (PolicyDecision, error) {
 	return PolicyDecision{}, &Error{Code: errorCodeUnsupported, Message: "policy checks are not supported by this client"}
 }
 

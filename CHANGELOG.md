@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- `NetworkRule.Methods/Path/Query` (plus `QueryCondition`) surface HTTP L7
+  policy conditions (contract 0.0.31). Converters round-trip them; rules from
+  pre-0.0.31 daemons decode with empty conditions.
+
 ## v0.0.27 — 2026-11-19
 
 ### Added

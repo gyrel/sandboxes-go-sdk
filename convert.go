@@ -238,7 +238,7 @@ func fromProtoPorts(ports []*localv1.Port) []Port {
 func toProtoRules(rules []NetworkRule) []*localv1.NetworkRule {
 	out := make([]*localv1.NetworkRule, 0, len(rules))
 	for i := range rules {
-		out = append(out, &localv1.NetworkRule{Protocol: rules[i].Protocol, Cidr: rules[i].CIDR, Port: uint32(rules[i].Port), Domain: rules[i].Domain, RuleId: rules[i].RuleID})
+		out = append(out, &localv1.NetworkRule{Protocol: rules[i].Protocol, Cidr: rules[i].CIDR, Port: uint32(rules[i].Port), Domain: rules[i].Domain, RuleId: rules[i].RuleID, Methods: rules[i].Methods, Path: rules[i].Path, Query: toProtoQueryConditions(rules[i].Query)})
 	}
 	return out
 }
@@ -249,7 +249,29 @@ func fromProtoRules(rules []*localv1.NetworkRule) []NetworkRule {
 		if rule == nil || rule.GetPort() > 65535 {
 			continue
 		}
-		out = append(out, NetworkRule{Protocol: rule.GetProtocol(), CIDR: rule.GetCidr(), Port: uint16(rule.GetPort()), Domain: rule.GetDomain(), RuleID: rule.GetRuleId()}) // #nosec G115 -- port is bounded above
+		out = append(out, NetworkRule{Protocol: rule.GetProtocol(), CIDR: rule.GetCidr(), Port: uint16(rule.GetPort()), Domain: rule.GetDomain(), RuleID: rule.GetRuleId(), Methods: rule.GetMethods(), Path: rule.GetPath(), Query: fromProtoQueryConditions(rule.GetQuery())}) // #nosec G115 -- port is bounded above
+	}
+	return out
+}
+
+func toProtoQueryConditions(conditions []QueryCondition) []*localv1.HTTPQueryCondition {
+	if len(conditions) == 0 {
+		return nil
+	}
+	out := make([]*localv1.HTTPQueryCondition, 0, len(conditions))
+	for _, c := range conditions {
+		out = append(out, &localv1.HTTPQueryCondition{Name: c.Name, Value: c.Value})
+	}
+	return out
+}
+
+func fromProtoQueryConditions(conditions []*localv1.HTTPQueryCondition) []QueryCondition {
+	var out []QueryCondition
+	for _, c := range conditions {
+		if c == nil {
+			continue
+		}
+		out = append(out, QueryCondition{Name: c.GetName(), Value: c.GetValue()})
 	}
 	return out
 }

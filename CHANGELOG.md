@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Added (kit policy)
+
+- `KitPolicy(client)` service: `CheckKit` and `GetKitPolicyConfig` over the
+  daemon's kit source policy (contract 0.0.37). `CheckKit` takes a source kind
+  (directory, zip, git, oci), a URL/path-only source ref, an optional sandbox
+  ID and a signature-present flag, and returns an allowed decision, a stable
+  reason, a human-readable message and the checked setting names. Daemons below
+  0.0.37 are refused client-side; empty source refs are rejected before RPC.
+- `KitPolicyConfig` exposes `AllowedSources`, `AllowLocalKits`,
+  `RequireSignature` and the read-only `Managed` flag.
+- Update the API module dependency to v0.0.37.
+
 ### Added (approvals and custom secrets)
 
 - `Approvals(client)` service: ListApprovals/InspectApproval/RespondApproval

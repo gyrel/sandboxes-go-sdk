@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added (MCP management)
+
+- Add `MCPServerManagement(client)` for loading, unloading, inspecting and managing authentication for MCP servers, and OAuth registration options. Requires API v0.0.38.
+
 ### Added (kit policy)
 
 - `KitPolicy(client)` service: `CheckKit` and `GetKitPolicyConfig` over the

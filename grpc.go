@@ -21,6 +21,7 @@ type client struct {
 	secrets     localv1.SecretServiceClient
 	templates   localv1.TemplateServiceClient
 	approvals   localv1.ApprovalServiceClient
+	kitPolicy   localv1.KitPolicyServiceClient
 	callTimeout time.Duration
 }
 
@@ -53,6 +54,7 @@ func New(cfg Config) (Client, error) {
 		secrets:     localv1.NewSecretServiceClient(conn),
 		templates:   localv1.NewTemplateServiceClient(conn),
 		approvals:   localv1.NewApprovalServiceClient(conn),
+		kitPolicy:   localv1.NewKitPolicyServiceClient(conn),
 		callTimeout: cfg.CallTimeout,
 	}, nil
 }

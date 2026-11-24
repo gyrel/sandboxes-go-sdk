@@ -119,6 +119,11 @@ func (s mcpServiceClient) Register(ctx context.Context, server MCPServerConfig) 
 	if err := validateMCPRegistration(server); err != nil {
 		return nil, err
 	}
+	if server.OAuthAuthorizationServer != "" || server.ClientID != "" || server.Resource != "" || len(server.Scopes) > 0 || server.NoScope || server.SkipAuth || server.CallbackPort != 0 || server.DisableHTTP2 {
+		if err := requireAPIVersion(ctx, s.c, mcpManagementMinimumAPIVersion, "MCP OAuth registration"); err != nil {
+			return nil, err
+		}
+	}
 	if err := s.requireMCPRegistrationVersion(ctx, len(server.SecretHeaders) > 0); err != nil {
 		return nil, err
 	}
@@ -127,6 +132,10 @@ func (s mcpServiceClient) Register(ctx context.Context, server MCPServerConfig) 
 	resp, err := s.c.sandboxes.MCPRegisterServer(ctx, &localv1.MCPRegisterServerRequest{
 		Name: server.Name, Command: server.Command, Arguments: append([]string(nil), server.Arguments...), WorkingDirectory: server.WorkingDirectory,
 		Url: server.URL, SecretHeaders: maps.Clone(server.SecretHeaders),
+		OauthAuthorizationServer: server.OAuthAuthorizationServer, ClientId: server.ClientID, Resource: server.Resource,
+		Scopes: append([]string(nil), server.Scopes...), NoScope: server.NoScope, SkipAuth: server.SkipAuth,
+		CallbackPort: int32(server.CallbackPort), // #nosec G115 -- validateMCPRegistration bounds the port.
+		DisableHttp2: server.DisableHTTP2,
 	})
 	if err != nil {
 		return nil, mapError(err)
@@ -137,6 +146,9 @@ func (s mcpServiceClient) Register(ctx context.Context, server MCPServerConfig) 
 func validateMCPRegistration(server MCPServerConfig) error {
 	if server.Name == "" {
 		return errors.New("MCP server name is required")
+	}
+	if err := validateMCPOAuthRegistration(server); err != nil {
+		return err
 	}
 	if server.URL != "" && (server.Command != "" || len(server.Arguments) > 0 || server.WorkingDirectory != "") {
 		return errors.New("remote MCP registration must not include stdio fields")
@@ -152,6 +164,16 @@ func validateMCPRegistration(server MCPServerConfig) error {
 	}
 	_, err := validateMCPServerConfig(server)
 	return err
+}
+
+func validateMCPOAuthRegistration(server MCPServerConfig) error {
+	if server.NoScope && len(server.Scopes) > 0 {
+		return errors.New("MCP scopes and no scope are mutually exclusive")
+	}
+	if server.CallbackPort < 0 || server.CallbackPort > 65535 {
+		return errors.New("MCP callback port must be between 0 and 65535")
+	}
+	return nil
 }
 
 func (s mcpServiceClient) requireMCPRegistrationVersion(ctx context.Context, needsSecretHeaders bool) error {

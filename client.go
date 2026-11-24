@@ -51,7 +51,12 @@ type MCPServerConfig struct {
 	Headers map[string]string
 	// SecretHeaders contain templates whose ${placeholder} references are
 	// resolved from the daemon's host vault for each request.
-	SecretHeaders map[string]string
+	SecretHeaders                                map[string]string
+	OAuthAuthorizationServer, ClientID, Resource string
+	Scopes                                       []string
+	NoScope, SkipAuth                            bool
+	CallbackPort                                 int
+	DisableHTTP2                                 bool
 }
 
 // MCPRegistration is either an immediately approved registry summary or a

@@ -329,3 +329,24 @@ func TestMCPRemoteRegistrationRejectsAmbiguousConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestMCPRegistrationOAuthFields(t *testing.T) {
+	c, server, cleanup := newMCPTestClient(t, "0.0.38")
+	defer cleanup()
+	req := MCPServerConfig{Name: "remote", URL: "https://example.com/mcp", OAuthAuthorizationServer: "https://example.com/oauth", ClientID: "client", Resource: "https://example.com", Scopes: []string{"read"}, SkipAuth: true, CallbackPort: 1234, DisableHTTP2: true}
+	if _, err := MCP(c).Register(context.Background(), req); err != nil {
+		t.Fatal(err)
+	}
+	got := server.registerReq
+	if got.GetOauthAuthorizationServer() != req.OAuthAuthorizationServer || got.GetClientId() != req.ClientID || got.GetResource() != req.Resource || len(got.GetScopes()) != 1 || got.GetScopes()[0] != "read" || !got.GetSkipAuth() || got.GetCallbackPort() != 1234 || !got.GetDisableHttp2() {
+		t.Fatalf("request=%+v", got)
+	}
+	req.NoScope = true
+	if _, err := MCP(c).Register(context.Background(), req); err == nil {
+		t.Fatal("expected mutually exclusive scopes error")
+	}
+	req.Scopes = nil
+	if _, err := MCP(c).Register(context.Background(), req); err != nil || !server.registerReq.GetNoScope() {
+		t.Fatalf("no scope: %v", err)
+	}
+}

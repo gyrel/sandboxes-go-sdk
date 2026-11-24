@@ -59,6 +59,13 @@ type ServiceSecret struct {
 	Refreshable bool
 	SecretType  SecretValueType
 	Origin      SecretOrigin
+	// EnvName, Hosts and PlaceholderMasked describe custom-secret placement
+	// (contract 0.0.36+). They are empty for service secrets and from older
+	// daemons. PlaceholderMasked reveals at most the last four characters of
+	// the placeholder; the full placeholder is returned only by SetCustomSecret.
+	EnvName           string
+	Hosts             []string
+	PlaceholderMasked string
 }
 
 // SecretService manages host-keychain service secrets.
@@ -97,6 +104,73 @@ type DynamicSecretCreator interface {
 func SecretSources(c Client) (DynamicSecretCreator, bool) {
 	creator, ok := Secrets(c).(DynamicSecretCreator)
 	return creator, ok
+}
+
+// CustomSecretRequest creates or updates a custom secret that the sandbox uses
+// through a placeholder. Set exactly one of Value or Source.
+//
+// Redaction: Value is write-only. The SDK forwards it to the daemon and never
+// logs, formats or returns it, and resolver output from Source is never
+// returned either. Do not place Value in process arguments or logs.
+type CustomSecretRequest struct {
+	// Service is the service identity. Empty lets the daemon derive it from
+	// the first host and return the resolved name in CustomSecretResult.Secret.Service.
+	Service     string
+	Scope       SecretScope
+	SandboxName string
+	// Value is an inline secret, stored host-side and never echoed.
+	Value []byte
+	// Source is a host-side reference or command with optional refresh
+	// policy. Its first resolution requires host approval, returned as
+	// CustomSecretResult.ApprovalRequired and ApprovalID.
+	Source *SecretSource
+	// Env is the sandbox environment variable that receives the placeholder.
+	Env string
+	// Placeholder is an explicit placeholder or a template ending in {rand}.
+	// Empty lets the daemon generate one.
+	Placeholder string
+	// Hosts are exact DNS names, IP literals or wildcard patterns ("*" matches
+	// one label, "**" matches any number) where the proxy substitutes the value.
+	Hosts []string
+}
+
+// CustomSecretResult reports the stored custom-secret summary. Placeholder is
+// the full placeholder and appears only in this write result; inventories keep
+// only ServiceSecret.PlaceholderMasked. While approval is pending, Secret is
+// zero and Placeholder is empty.
+type CustomSecretResult struct {
+	Secret           ServiceSecret
+	ApprovalRequired bool
+	ApprovalID       string
+	Placeholder      string
+}
+
+// CustomSecretService manages custom secrets. It is an optional capability so
+// existing SecretService implementations remain source compatible.
+type CustomSecretService interface {
+	SetCustomSecret(ctx context.Context, req CustomSecretRequest) (CustomSecretResult, error)
+}
+
+// CustomSecretServiceProvider is implemented by clients that expose custom secrets.
+type CustomSecretServiceProvider interface {
+	CustomSecretService() CustomSecretService
+}
+
+// CustomSecrets returns the optional custom-secret capability; unsupported
+// fallback keeps callers compiling against older transports.
+func CustomSecrets(c Client) CustomSecretService {
+	if provider, ok := c.(CustomSecretServiceProvider); ok {
+		if service := provider.CustomSecretService(); service != nil {
+			return service
+		}
+	}
+	return unsupportedCustomSecretService{}
+}
+
+type unsupportedCustomSecretService struct{}
+
+func (unsupportedCustomSecretService) SetCustomSecret(context.Context, CustomSecretRequest) (CustomSecretResult, error) {
+	return CustomSecretResult{}, &Error{Code: errorCodeUnsupported, Message: "custom secrets are not supported by this client"}
 }
 
 // SecretCreation returns the optional create-only service-secret capability.
@@ -138,7 +212,11 @@ func (unsupportedSecretService) Remove(context.Context, string, SecretScope, str
 
 func (c *client) SecretService() SecretService { return secretClient{c: c} }
 
+func (c *client) CustomSecretService() CustomSecretService { return secretClient{c: c} }
+
 type secretClient struct{ c *client }
+
+var _ CustomSecretService = secretClient{}
 
 func (s secretClient) Set(ctx context.Context, service string, scope SecretScope, sandboxName string, value []byte) (ServiceSecret, error) {
 	ctx, cancel := s.c.context(ctx)
@@ -178,15 +256,7 @@ func (s secretClient) SetSource(ctx context.Context, service string, scope Secre
 	if !apiVersionAtLeast(version.APIVersion, dynamicSecretSourcesMinimumAPIVersion) {
 		return ServiceSecret{}, &Error{Code: errorCodeUnsupported, Message: "dynamic secret sources require daemon API v0.0.16 or newer"}
 	}
-	request := &localv1.SecretSource{
-		Reference:  source.Reference,
-		Command:    source.Command,
-		Refresh:    source.Refresh,
-		NoVerify:   source.NoVerify,
-		ShowError:  source.ShowError,
-		OpAccount:  source.OPAccount,
-		AwsProfile: source.AWSProfile,
-	}
+	request := secretSourceToProto(source)
 	if overwrite {
 		resp, err := s.c.secrets.Set(ctx, &localv1.SecretServiceSetRequest{
 			Service: service, Scope: string(scope), SandboxName: sandboxName, Source: request,
@@ -203,6 +273,62 @@ func (s secretClient) SetSource(ctx context.Context, service string, scope Secre
 		return ServiceSecret{}, mapError(err)
 	}
 	return serviceSecretWithMetadata(serviceSecretFromProto(resp.GetSecret()), resp.GetSecret()), nil
+}
+
+// SetCustomSecret stores a custom secret. Value and resolver output are never
+// logged, echoed in errors or returned; see CustomSecretRequest. A reference or
+// command Source on a daemon without a trusted approval provider returns
+// ErrApprovalProviderUnavailable instead of storing the source.
+func (s secretClient) SetCustomSecret(ctx context.Context, req CustomSecretRequest) (CustomSecretResult, error) {
+	if (len(req.Value) == 0) == (req.Source == nil) {
+		return CustomSecretResult{}, &Error{Code: errorCodeInvalidArgument, Message: "exactly one of Value or Source is required"}
+	}
+	if err := requireAPIVersion(ctx, s.c, customSecretsMinimumAPIVersion, "custom secrets"); err != nil {
+		return CustomSecretResult{}, err
+	}
+	ctx, cancel := s.c.context(ctx)
+	defer cancel()
+	resp, err := s.c.secrets.SetCustom(ctx, toProtoCustomSecretRequest(req))
+	if err != nil {
+		if req.Source != nil {
+			return CustomSecretResult{}, mapApprovalUnavailable(err)
+		}
+		return CustomSecretResult{}, mapError(err)
+	}
+	return CustomSecretResult{
+		Secret:           serviceSecretWithMetadata(serviceSecretFromProto(resp.GetSecret()), resp.GetSecret()),
+		ApprovalRequired: resp.GetApprovalRequired(),
+		ApprovalID:       resp.GetApprovalId(),
+		Placeholder:      resp.GetPlaceholder(),
+	}, nil
+}
+
+func toProtoCustomSecretRequest(req CustomSecretRequest) *localv1.SecretServiceSetCustomRequest {
+	out := &localv1.SecretServiceSetCustomRequest{
+		Service:     req.Service,
+		Scope:       string(req.Scope),
+		SandboxName: req.SandboxName,
+		Value:       req.Value,
+		Env:         req.Env,
+		Placeholder: req.Placeholder,
+		Hosts:       append([]string(nil), req.Hosts...),
+	}
+	if req.Source != nil {
+		out.Source = secretSourceToProto(*req.Source)
+	}
+	return out
+}
+
+func secretSourceToProto(source SecretSource) *localv1.SecretSource {
+	return &localv1.SecretSource{
+		Reference:  source.Reference,
+		Command:    source.Command,
+		Refresh:    source.Refresh,
+		NoVerify:   source.NoVerify,
+		ShowError:  source.ShowError,
+		OpAccount:  source.OPAccount,
+		AwsProfile: source.AWSProfile,
+	}
 }
 
 func (s secretClient) List(ctx context.Context) ([]ServiceSecret, error) {
@@ -261,5 +387,8 @@ func serviceSecretWithMetadata(secret ServiceSecret, item *localv1.SecretSummary
 	secret.Refreshable = item.GetRefreshable()
 	secret.SecretType = SecretValueType(item.GetSecretType())
 	secret.Origin = SecretOrigin(item.GetOrigin())
+	secret.EnvName = item.GetEnvName()
+	secret.Hosts = append([]string(nil), item.GetHosts()...)
+	secret.PlaceholderMasked = item.GetPlaceholderMasked()
 	return secret
 }

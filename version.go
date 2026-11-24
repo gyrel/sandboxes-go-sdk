@@ -15,6 +15,14 @@ const policyCheckURLMinimumAPIVersion = "0.0.32"
 
 const dynamicSecretSourcesMinimumAPIVersion = "0.0.16"
 
+// approvalsMinimumAPIVersion gates the ApprovalService RPCs. Older daemons do
+// not implement them, so the SDK fails closed instead of sending them.
+const approvalsMinimumAPIVersion = "0.0.36"
+
+// customSecretsMinimumAPIVersion gates SecretService.SetCustom, which carries
+// placeholder, env and host placement for custom secrets.
+const customSecretsMinimumAPIVersion = "0.0.36"
+
 // secretMetadataMinimumAPIVersion is the first contract that returns
 // non-secret inventory metadata (timestamps, source kind, refresh capability
 // and origin) with service and registry secret summaries.

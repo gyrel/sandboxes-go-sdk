@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Added (approvals and custom secrets)
+
+- `Approvals(client)` service: ListApprovals/InspectApproval/RespondApproval
+  over the daemon's host-side approval queue (contract 0.0.36). Approvals carry
+  header names with vault or static class, bounded environment names and a
+  redacted cwd summary; no header, environment or secret value is exposed.
+  Responding with APPROVE or an EXACT persist scope on a daemon without a
+  trusted approval provider returns `ErrApprovalProviderUnavailable`, matched
+  with `errors.Is`. Daemons below 0.0.36 are refused client-side.
+- `CustomSecrets(client).SetCustomSecret` stores an inline or reference/command
+  custom secret with env, placeholder and host placement. The write result
+  returns the full placeholder once; inventories keep only the masked form via
+  the new `ServiceSecret.EnvName`, `Hosts` and `PlaceholderMasked` fields.
+  Values are write-only and never logged or returned by the SDK.
+- Update the API module dependency to v0.0.36.
+
 ### Added (templates)
 
 - `Templates(client)` service: Save/Load/Remove/List/Inspect against daemon

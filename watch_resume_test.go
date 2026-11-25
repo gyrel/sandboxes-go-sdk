@@ -12,7 +12,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 
-	localv1 "github.com/rheic/sandboxes-api/gen/go/sandboxes/local/v1"
+	localv1 "github.com/gyrel/sandboxes-api/gen/go/sandboxes/local/v1"
 )
 
 type resumeWatchServer struct {

@@ -30,7 +30,7 @@ dispatch_job=$(awk '
   in_job { print }
 ' "$workflow")
 grep -Fq '    needs: create_tag' <<<"$dispatch_job"
-grep -Fq "if: github.repository == 'rheic/sandboxes-daemon' || github.repository == 'rheic/sandboxes-cli'" <<<"$dispatch_job"
+grep -Fq "if: github.repository == 'gyrel/sandboxes-daemon' || github.repository == 'gyrel/sandboxes-cli'" <<<"$dispatch_job"
 grep -Fq 'TAG: v${{ inputs.version }}' <<<"$dispatch_job"
 grep -Fq 'ref=$TAG' <<<"$dispatch_job"
 ! grep -Fq 'contents: write' <<<"$dispatch_job"

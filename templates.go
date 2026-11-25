@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	localv1 "github.com/rheic/sandboxes-api/gen/go/sandboxes/local/v1"
+	localv1 "github.com/gyrel/sandboxes-api/gen/go/sandboxes/local/v1"
 )
 
 // Template is one recorded local template image (ADR-0008). Field values

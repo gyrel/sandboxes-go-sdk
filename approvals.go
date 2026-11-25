@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	localv1 "github.com/rheic/sandboxes-api/gen/go/sandboxes/local/v1"
+	localv1 "github.com/gyrel/sandboxes-api/gen/go/sandboxes/local/v1"
 )
 
 // ApprovalKind classifies a host-side consent request.

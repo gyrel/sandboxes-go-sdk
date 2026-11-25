@@ -1,4 +1,4 @@
-module github.com/rheic/sandboxes-go-sdk
+module github.com/gyrel/sandboxes-go-sdk
 
 go 1.27
 
@@ -6,7 +6,7 @@ toolchain go1.27.4
 
 require (
 	github.com/Microsoft/go-winio v0.6.4
-	github.com/rheic/sandboxes-api v0.0.38
+	github.com/gyrel/sandboxes-api v0.0.39
 	golang.org/x/sys v0.50.0
 	google.golang.org/grpc v1.85.0
 )

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- Rename the Go module path to `github.com/gyrel/sandboxes-go-sdk` and the API
+  dependency to `github.com/gyrel/sandboxes-api v0.0.39`.
+
 ### Added (MCP management)
 
 - Add `MCPServerManagement(client)` for loading, unloading, inspecting and managing authentication for MCP servers, and OAuth registration options. Requires API v0.0.38.

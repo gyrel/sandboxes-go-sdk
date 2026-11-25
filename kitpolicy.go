@@ -3,7 +3,7 @@ package sandboxes
 import (
 	"context"
 
-	localv1 "github.com/rheic/sandboxes-api/gen/go/sandboxes/local/v1"
+	localv1 "github.com/gyrel/sandboxes-api/gen/go/sandboxes/local/v1"
 )
 
 // KitSourceKind identifies the kind of a kit source reference. Unknown values

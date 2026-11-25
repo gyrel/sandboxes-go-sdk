@@ -1,6 +1,6 @@
 package sandboxes
 
-import localv1 "github.com/rheic/sandboxes-api/gen/go/sandboxes/local/v1"
+import localv1 "github.com/gyrel/sandboxes-api/gen/go/sandboxes/local/v1"
 
 func validateSkillsOptions(skills *SkillsOptions) error {
 	if skills == nil {

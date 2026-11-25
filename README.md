@@ -1,11 +1,11 @@
 # sandboxes-go-sdk
 
-<img src="docs/assets/rheic-shark.png" alt="Rheic shark logo" width="180">
+<img src="docs/assets/gyrel-shark.png" alt="Gyrel shark logo" width="180">
 
 
 ## Import path migration
 
-The canonical Go module path is now `github.com/rheic/sandboxes-go-sdk` (previously `github.com/quoiner/sandboxes-go-sdk`). Update imports and `go.mod` requirements when moving to a release that includes this change. The old module path is not kept as a compatibility alias.
+The canonical Go module path is now `github.com/gyrel/sandboxes-go-sdk` (previously `github.com/quoiner/sandboxes-go-sdk`). Update imports and `go.mod` requirements when moving to a release that includes this change. The old module path is not kept as a compatibility alias.
 
 Status: pre-alpha.
 

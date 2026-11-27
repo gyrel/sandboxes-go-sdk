@@ -276,6 +276,7 @@ func (s sandboxClient) Create(ctx context.Context, req CreateRequest) (*Operatio
 		Privileged:       req.Privileged,
 		Env:              req.Env,
 		OauthCredentials: toProtoOAuthCredentials(req.OAuthCredentials),
+		Labels:           req.Labels,
 	})
 	if err != nil {
 		return nil, mapError(err)

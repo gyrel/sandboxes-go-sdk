@@ -4,10 +4,17 @@ import (
 	"context"
 	"errors"
 	"io"
+	"regexp"
 
+	"google.golang.org/genproto/googleapis/rpc/errdetails"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
+
+// daemonReasonPattern is the daemon registry shape for stable machine-readable
+// reasons carried in google.rpc.ErrorInfo. Advisory or free-form reasons are
+// deliberately ignored so MachineCode only exposes registry values.
+var daemonReasonPattern = regexp.MustCompile(`^[A-Z][A-Z0-9_]{3,}$`)
 
 const errorCodeInvalidArgument = "invalid_argument"
 const errorCodeUnsupported = "unsupported"
@@ -36,8 +43,13 @@ func mapApprovalUnavailable(err error) error {
 	if err == nil {
 		return nil
 	}
-	if status.Code(err) == codes.FailedPrecondition {
-		return &Error{Code: errorCodeApprovalProviderUnavailable, Message: status.Convert(err).Message()}
+	st := status.Convert(err)
+	if st.Code() == codes.FailedPrecondition {
+		return &Error{
+			Code:        errorCodeApprovalProviderUnavailable,
+			Message:     st.Message(),
+			MachineCode: daemonMachineCode(st),
+		}
 	}
 	return mapError(err)
 }
@@ -62,7 +74,8 @@ func mapError(err error) error {
 
 	code := errorCodeInternal
 	retryable := false
-	switch status.Code(err) {
+	st := status.Convert(err)
+	switch st.Code() {
 	case codes.NotFound:
 		code = "not_found"
 	case codes.AlreadyExists:
@@ -80,5 +93,21 @@ func mapError(err error) error {
 	case codes.ResourceExhausted:
 		code, retryable = "resource_exhausted", true
 	}
-	return &Error{Code: code, Message: status.Convert(err).Message(), Retryable: retryable}
+	return &Error{Code: code, Message: st.Message(), Retryable: retryable, MachineCode: daemonMachineCode(st)}
+}
+
+// daemonMachineCode returns the first google.rpc.ErrorInfo reason that matches
+// the daemon registry pattern. Missing, malformed or advisory details yield an
+// empty string and never change the surrounding error mapping.
+func daemonMachineCode(st *status.Status) string {
+	if st == nil {
+		return ""
+	}
+	for _, detail := range st.Details() {
+		info, ok := detail.(*errdetails.ErrorInfo)
+		if ok && daemonReasonPattern.MatchString(info.GetReason()) {
+			return info.GetReason()
+		}
+	}
+	return ""
 }

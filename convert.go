@@ -23,6 +23,7 @@ func fromProtoSandbox(in *localv1.Sandbox) (*Sandbox, error) {
 		Workspaces:    fromProtoWorkspaces(in.GetWorkspaces()),
 		Clone:         fromProtoClone(in.GetCloneInfo()),
 		Skills:        fromProtoSkills(in.GetSkills()),
+		Labels:        in.GetLabels(),
 		Ports:         fromProtoPorts(in.GetPorts()),
 		Allow:         fromProtoRules(in.GetAllow()),
 		Deny:          fromProtoRules(in.GetDeny()),

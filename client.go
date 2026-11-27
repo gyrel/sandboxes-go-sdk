@@ -530,6 +530,10 @@ type CreateRequest struct {
 	// OAuthCredentials carries declaration-only kit metadata. Create verifies
 	// the daemon API version before sending it and fails closed for older APIs.
 	OAuthCredentials []OAuthCredential
+	// Labels are opaque key/value metadata stored with the sandbox. The daemon
+	// owns label validation (key grammar, value length, count and
+	// credential-looking keys); the SDK only passes the map through.
+	Labels map[string]string
 }
 
 // OAuthCredential mirrors the OAuth portion of a Docker Sandboxes v2 kit.
@@ -598,8 +602,10 @@ type Sandbox struct {
 	MemoryMiB     uint32
 	StoppedAt     time.Time
 	Error         string
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	// Labels are the key/value metadata stored with the sandbox; nil when unset.
+	Labels    map[string]string
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }
 
 // Operation is the public operation representation.
@@ -667,6 +673,10 @@ type Error struct {
 	Message   string
 	Retryable bool
 	Operation string
+	// MachineCode is the daemon's stable machine-readable reason from a
+	// google.rpc.ErrorInfo detail, when it matches the registry pattern. It is
+	// empty when the daemon supplies no such detail.
+	MachineCode string
 }
 
 func (e *Error) Error() string { return e.Code + ": " + e.Message }

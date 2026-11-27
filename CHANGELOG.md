@@ -4,8 +4,20 @@
 
 ### Changed
 
-- Rename the Go module path to `github.com/gyrel/sandboxes-go-sdk` and the API
-  dependency to `github.com/gyrel/sandboxes-api v0.0.39`.
+- Rename the Go module path to `github.com/gyrel/sandboxes-go-sdk` and move the
+  API dependency to `github.com/gyrel/sandboxes-api v0.0.40`.
+
+### Added (labels and error machine codes)
+
+- `CreateRequest.Labels` sends up to 16 key/value labels with a sandbox, and
+  `Sandbox.Labels` returns them from Get, List and Watch. The map is nil when
+  the daemon records no labels. Label grammar, value length and
+  credential-looking key checks stay server-side; the SDK passes the map
+  through unchanged.
+- `Error.MachineCode` exposes a daemon's stable `google.rpc.ErrorInfo` reason
+  when it matches the registry pattern (`^[A-Z][A-Z0-9_]{3,}$`). Missing,
+  malformed or lowercase reasons yield an empty value and never change the
+  existing error code or message. Requires API v0.0.40.
 
 ### Added (MCP management)
 
